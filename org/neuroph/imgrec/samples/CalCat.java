@@ -25,21 +25,21 @@ import java.util.Scanner;
 import java.io.FilenameFilter;
 
 public class CalCat {
-	private File picfolder;
-	private File trainfolder;
-	Scanner in = new Scanner(System.in);
-	Integer width = 30;
-	Integer height = 33;
-	Integer numlayers = 2;
-	ArrayList<Integer> layers = new ArrayList<Integer> ();
-	List<String> imageLabels = new ArrayList<String> ();
-	HashMap<String, BufferedImage> imagesMap = new HashMap<String, BufferedImage> ();
-	ImageRecognitionPlugin imageRecognition;
-	private File testfolder;
-	HashMap<String, Double> imageRecMap = new HashMap<String, Double> ();
+	private static File picfolder;
+	private static File trainfolder;
+	private static Scanner in = new Scanner(System.in);
+	private static Integer width = 30;
+	private static Integer height = 33;
+	private static Integer numlayers = 2;
+	private static ArrayList<Integer> layers = new ArrayList<Integer> ();
+	private static List<String> imageLabels = new ArrayList<String> ();
+	private static HashMap<String, BufferedImage> imagesMap = new HashMap<String, BufferedImage> ();
+	private static ImageRecognitionPlugin imageRecognition;
+	private static File testfolder;
+	private static HashMap<String, Double> imageRecMap = new HashMap<String, Double> ();
+	private static NeuralNetwork nn;
 
-
-	public void main(String[] args) {
+	public static void main(String[] args) {
 
 		//	Steps:
 		//	1. pass in picture folder path (not case sentative)
@@ -63,21 +63,21 @@ public class CalCat {
 
 		System.out.println("Enter picture folder ");
 		String trainfolderpath = in.nextLine();
-		System.out.println("You entered picture folder path (string): "+ picfolderpath + trainfolderpath);
+		System.out.println("You entered picture folder path (string): "+ picfolderpath + "\\" + trainfolderpath);
 		trainfolder = new File (picfolderpath, trainfolderpath);
-		this.createlearningdataset(trainfolder);
+		createlearningdataset(trainfolder);
 
 		System.out.println("Enter picture folder ");
 		String testfolderpath = in.nextLine();
 		System.out.println("You entered picture folder path (string): " + testfolderpath);
 		testfolder = new File (testfolderpath);
-		this.createtestingdataset (imageRecognition, testfolder);
+		createtestingdataset (imageRecognition, testfolder);
 	}
 
 
 
 
-	public ImageRecognitionPlugin createlearningdataset (File trainfolder){
+	public static ImageRecognitionPlugin createlearningdataset (File trainfolder){
 
 		System.out.println("Enter picture width ");
 		width = in.nextInt();
@@ -106,13 +106,13 @@ public class CalCat {
 		numlayers = in.nextInt();
 		System.out.println("You entered number of layers: "+ numlayers);
 
-		for (Integer i = 0; i < numlayers; i++){
+		for (Integer i = 1; i <= numlayers; i++){
 			System.out.println("Enter number of neurons for layer " + i);
 			Integer neuron = in.nextInt();
 			System.out.println("You entered number of neurons for layer " + i + " :"+ neuron);
 			layers.add (neuron);
 		}
-		NeuralNetwork nn = ImageRecognitionHelper.createNewNeuralNetwork ("recognition", new Dimension (width, height), ColorMode.BLACK_AND_WHITE, imageLabels, layers, TransferFunctionType.SIGMOID); // create my own network
+		nn = ImageRecognitionHelper.createNewNeuralNetwork ("recognition", new Dimension (width, height), ColorMode.BLACK_AND_WHITE, imageLabels, layers, TransferFunctionType.SIGMOID); // create my own network
 
 		// learn data
 		MomentumBackpropagation mb1 = (MomentumBackpropagation)nn.getLearningRule();
@@ -126,54 +126,35 @@ public class CalCat {
 	}
 
 	// Test images
-	public String createtestingdataset (ImageRecognitionPlugin ir, File testfolderpath){
+	public static HashMap<String, Double> createtestingdataset (ImageRecognitionPlugin ir, File testfolderpath){
 		System.out.println("-----------------------------------------------------------------------------------------------------");
 		for (File file : testfolderpath.listFiles ())
 		{
 			String testfile = FilenameUtils.removeExtension(file.getName());
 			System.out.println("Checking '" + testfile + "'");
-			String result = "";
+			
 			try {
 				HashMap<String, Double> output = imageRecognition.recognizeImage(file);
 
 				NumberFormat formatter = new DecimalFormat("#0.0"); 
 				double maxPercent = Double.MIN_VALUE;
 				for (Map.Entry<String, Double> entry : output.entrySet()) {
-
+					String result = entry.getKey() ;
 					if ( entry.getValue() > maxPercent){
 						maxPercent = entry.getValue(); 
 						result = entry.getKey() + " (" + formatter.format(maxPercent * 100) + " %)";
+						imageRecMap.put(entry.getKey(), entry.getValue());
 					}
+					System.out.println(result);
 				}
 
 			} catch(IOException ioe) {
 				ioe.printStackTrace();
 			}
-			System.out.println(testfile + "  " + testfilerec);
-			imageRecMap.put(testfile, testfilerec);
+			
 		}
 		System.out.println("-----------------------------------------------------------------------------------------------------");
-		return null;
+		return imageRecMap;
 	}
-	private static Double RecognizeImage(ImageRecognitionPlugin imageRecognition, String imagePath) {
-		String result = "";
-		try {
-			HashMap<String, Double> output = imageRecognition.recognizeImage(new File(imagePath));
 
-			NumberFormat formatter = new DecimalFormat("#0.0"); 
-			double maxPercent = Double.MIN_VALUE;
-			for (Map.Entry<String, Double> entry : output.entrySet()) {
-
-				if ( entry.getValue() > maxPercent){
-					maxPercent = entry.getValue(); 
-					result = entry.getKey() + " (" + formatter.format(maxPercent * 100) + " %)";
-				}
-			}
-
-		} catch(IOException ioe) {
-			ioe.printStackTrace();
-		}
-
-		return result;
-	}
 }

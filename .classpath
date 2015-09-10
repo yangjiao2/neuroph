@@ -11,5 +11,10 @@
 	<classpathentry kind="lib" path="E:/commons-io-2.4-bin/commons-io-2.4/commons-io-2.4.jar"/>
 	<classpathentry kind="lib" path="E:/commons-io-2.4-bin/commons-io-2.4/commons-io-2.4-javadoc.jar"/>
 	<classpathentry kind="lib" path="E:/commons-io-2.4-bin/commons-io-2.4/commons-io-2.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Yang/javacsv2.1/javacsv.jar"/>
+	<classpathentry kind="lib" path="E:/slf4j-1.7.12/slf4j-api-1.7.12.jar"/>
+	<classpathentry kind="lib" path="E:/slf4j-1.7.12/slf4j-api-1.7.12-sources.jar"/>
+	<classpathentry kind="lib" path="E:/slf4j-1.7.12/slf4j-simple-1.7.12.jar"/>
+	<classpathentry kind="lib" path="E:/slf4j-1.7.12/slf4j-simple-1.7.12-sources.jar"/>
 	<classpathentry kind="output" path=""/>
 </classpath>

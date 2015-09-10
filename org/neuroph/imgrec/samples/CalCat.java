@@ -24,6 +24,9 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.io.FilenameFilter;
 
+import java.util.StringTokenizer;
+import java.util.Collections;
+
 public class CalCat {
 	private static File picfolder;
 	private static File trainfolder;
@@ -39,45 +42,13 @@ public class CalCat {
 	private static HashMap<String, Double> imageRecMap = new HashMap<String, Double> ();
 	private static NeuralNetwork nn;
 
-	public static void main(String[] args) {
-
-		//	Steps:
-		//	1. pass in picture folder path (not case sentative)
-		//	2. adding training image (image folder) in train folder
-		//	3. make neural network 
-		//	4. test image (image folder) and generate readable output
-
-
-		//
-		String picfolderpath = "C:\\Users\\Yang\\MDP\\Neuroph\\test1\\morethan20";
-		//
-		picfolder = new File (picfolderpath);
-
-		String[] directories = picfolder.list(new FilenameFilter() {
-			@Override
-			public boolean accept(File current, String name) {
-				return new File(current, name).isDirectory();
-			}
-		});
-		System.out.println(Arrays.toString(directories));
-
-		System.out.println("Enter picture folder ");
-		String trainfolderpath = in.nextLine();
-		System.out.println("You entered picture folder path (string): "+ picfolderpath + "\\" + trainfolderpath);
-		trainfolder = new File (picfolderpath, trainfolderpath);
-		createlearningdataset(trainfolder);
-
-		System.out.println("Enter picture folder ");
-		String testfolderpath = in.nextLine();
-		System.out.println("You entered picture folder path (string): " + testfolderpath);
-		testfolder = new File (testfolderpath);
-		createtestingdataset (imageRecognition, testfolder);
-	}
+	
 
 
 
 
-	public static ImageRecognitionPlugin createlearningdataset (File trainfolder){
+
+	public static ImageRecognitionPlugin createlearningdataset (File picfolder, File labeledImagesDir, String trainfolderpath, String[] directories){
 
 		System.out.println("Enter picture width ");
 		width = in.nextInt();
@@ -87,18 +58,70 @@ public class CalCat {
 		height = in.nextInt();
 		System.out.println("You entered picture height: "+ height);
 
-
 		// Create learning data
 		//		List<String> imageLabels = new ArrayList<String> ();
 		//		HashMap<String, BufferedImage> imagesMap = new HashMap<String, BufferedImage> ();
 
-		for (File file : trainfolder.listFiles ())
-		{
-			imageLabels.add(FilenameUtils.removeExtension(file.getName()));
-			imagesMap.put(file.getName(), ImageUtilities.resizeImage (ImageUtilities.loadImage(file), width, height));           
+		//		for (File file : trainfolder.listFiles ())
+		//		{
+		//			imageLabels.add(FilenameUtils.removeExtension(file.getName()));
+		//			imagesMap.put(file.getName(), ImageUtilities.resizeImage (ImageUtilities.loadImage(file), width, height));           
+		//		}
+		//		Map<String, FractionRgbData> imageRgbData = ImageUtilities.getFractionRgbDataForImages (imagesMap);
+		//		
+		//		for (String imgName : imageRgbData.keySet()) {
+		//            StringTokenizer st = new StringTokenizer(imgName, "._");
+		//            String imageLabel = st.nextToken();
+		//            if (!imageLabels.contains(imageLabel)) {
+		//                imageLabels.add(imageLabel);
+		//            }
+		//        }
+		//        Collections.sort(imageLabels);
+		//        
+
+
+		DataSet dataSet = null;
+		HashMap<String, FractionRgbData> rgbDataMap = new HashMap<String, FractionRgbData>();
+		List imageLabels = new ArrayList<String>();
+		String imageDir = labeledImagesDir.toString();
+
+		// load color infor for images to recognize
+		try {
+			// get labels for all images
+			rgbDataMap.putAll(ImageRecognitionHelper.getFractionRgbDataForDirectory(labeledImagesDir, new Dimension (width, height))); // pre je koristio ImageLoader
+
+			for (String imgName : rgbDataMap.keySet()) {
+				StringTokenizer st = new StringTokenizer(imgName, "._");
+				String imageLabel = st.nextToken();
+				if (!imageLabels.contains(imageLabel)) {
+					imageLabels.add(imageLabel);
+				}
+			}
+			Collections.sort(imageLabels);                        
+		} catch (IOException ioe) {
+			System.err.println("Unable to load images from labeled images dir: '" + imageDir + "'");
+			System.err.println(ioe.toString());
 		}
-		Map<String, FractionRgbData> imageRgbData = ImageUtilities.getFractionRgbDataForImages (imagesMap);
-		DataSet learningData = ImageRecognitionHelper.createRGBTrainingSet(imageLabels, imageRgbData);
+
+		// load junk images
+//		for (String junkDir: directories){
+//			if (!junkDir.equals(picfolder)){
+//				try {
+//					File junkImagesDir = new File(picfolder, junkDir);
+//					rgbDataMap.putAll(ImageRecognitionHelper.getFractionRgbDataForDirectory(junkImagesDir, new Dimension (width, height))); // pre je koristio ImageLoader
+//				} catch (IOException ioe) {
+//					System.err.println("Unable to load images from junk images dir: '" + junkDir + "'");
+//					System.err.println(ioe.toString());
+//				}
+//			}
+//		}
+		
+		System.out.println(imageLabels.size());
+		System.out.println(rgbDataMap.size());
+		System.out.println(imageLabels);
+		System.out.println(rgbDataMap.keySet());
+		System.out.println(rgbDataMap.values());
+		dataSet = ImageRecognitionHelper.createBlackAndWhiteTrainingSet(imageLabels, rgbDataMap);
 
 		// create neural networks
 		//		ArrayList<Integer> layers = new ArrayList<Integer> ();
@@ -112,15 +135,14 @@ public class CalCat {
 			System.out.println("You entered number of neurons for layer " + i + " :"+ neuron);
 			layers.add (neuron);
 		}
-		nn = ImageRecognitionHelper.createNewNeuralNetwork ("recognition", new Dimension (width, height), ColorMode.BLACK_AND_WHITE, imageLabels, layers, TransferFunctionType.SIGMOID); // create my own network
+		nn = ImageRecognitionHelper.createNewNeuralNetwork (trainfolderpath, new Dimension (width, height), ColorMode.BLACK_AND_WHITE, imageLabels, layers, TransferFunctionType.SIGMOID);
 
 		// learn data
 		MomentumBackpropagation mb1 = (MomentumBackpropagation)nn.getLearningRule();
 		mb1.setLearningRate(0.2);
 		mb1.setMaxError(0.1);
 		mb1.setMomentum(0.7);
-
-		nn.learn(learningData);
+		nn.learn(dataSet);
 
 		return imageRecognition = (ImageRecognitionPlugin)nn.getPlugin(ImageRecognitionPlugin.class); 
 	}
@@ -132,7 +154,7 @@ public class CalCat {
 		{
 			String testfile = FilenameUtils.removeExtension(file.getName());
 			System.out.println("Checking '" + testfile + "'");
-			
+
 			try {
 				HashMap<String, Double> output = imageRecognition.recognizeImage(file);
 
@@ -151,7 +173,7 @@ public class CalCat {
 			} catch(IOException ioe) {
 				ioe.printStackTrace();
 			}
-			
+
 		}
 		System.out.println("-----------------------------------------------------------------------------------------------------");
 		return imageRecMap;

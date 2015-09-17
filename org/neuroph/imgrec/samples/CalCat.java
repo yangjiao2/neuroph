@@ -6,6 +6,7 @@ import org.neuroph.imgrec.ColorMode;
 import org.neuroph.imgrec.FractionRgbData;
 import org.neuroph.imgrec.ImageRecognitionHelper;
 import org.neuroph.imgrec.ImageRecognitionPlugin;
+import org.neuroph.imgrec.ImageSampler;
 import org.neuroph.imgrec.ImageUtilities;
 import org.neuroph.imgrec.image.Dimension;
 import org.neuroph.nnet.learning.MomentumBackpropagation;
@@ -18,45 +19,30 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
 import java.io.FilenameFilter;
-
 import java.util.StringTokenizer;
 import java.util.Collections;
 
+import org.neuroph.imgrec.image.Image;
+
+
+import org.neuroph.imgrec.image.ImageFactory;
+
+
 public class CalCat {
-	private static File picfolder;
-	private static File trainfolder;
-	private static Scanner in = new Scanner(System.in);
-	private static Integer width = 30;
-	private static Integer height = 33;
-	private static Integer numlayers = 2;
-	private static ArrayList<Integer> layers = new ArrayList<Integer> ();
-	private static List<String> imageLabels = new ArrayList<String> ();
+	//	private static Integer numlayers = 2;
+	//	private static ArrayList<Integer> layers = new ArrayList<Integer> ();
+	//	private static List<String> imageLabels = new ArrayList<String> ();
+
 	private static HashMap<String, BufferedImage> imagesMap = new HashMap<String, BufferedImage> ();
-	private static ImageRecognitionPlugin imageRecognition;
-	private static File testfolder;
-	private static HashMap<String, Double> imageRecMap = new HashMap<String, Double> ();
 	private static NeuralNetwork nn;
-
-	
-
-
-
-
-
-	public static ImageRecognitionPlugin createlearningdataset (File picfolder, File labeledImagesDir, String trainfolderpath, String[] directories){
-
-		System.out.println("Enter picture width ");
-		width = in.nextInt();
-		System.out.println("You entered picture width: "+ width);
-
-		System.out.println("Enter picture height ");
-		height = in.nextInt();
-		System.out.println("You entered picture height: "+ height);
+	private static ImageRecognitionPlugin imageRecognition;
+	public static ImageRecognitionPlugin createlearningdataset (File picfolder, File labeledImagesDir, String trainfolderpath, String[] directories , Integer width, Integer height, Integer numlayers, ArrayList<Integer> layers){
 
 		// Create learning data
 		//		List<String> imageLabels = new ArrayList<String> ();
@@ -82,14 +68,14 @@ public class CalCat {
 
 		DataSet dataSet = null;
 		HashMap<String, FractionRgbData> rgbDataMap = new HashMap<String, FractionRgbData>();
-		List imageLabels = new ArrayList<String>();
+		List<String> imageLabels = new ArrayList<String>();
 		String imageDir = labeledImagesDir.toString();
 
 		// load color infor for images to recognize
 		try {
 			// get labels for all images
-			rgbDataMap.putAll(ImageRecognitionHelper.getFractionRgbDataForDirectory(labeledImagesDir, new Dimension (width, height))); // pre je koristio ImageLoader
-
+			rgbDataMap.putAll(ImageRecognitionHelper.getFractionRgbDataForDirectory(labeledImagesDir, new Dimension (width, height))); 
+			System.out.println("Load images from labeled images dir: '" + imageDir + "'");
 			for (String imgName : rgbDataMap.keySet()) {
 				StringTokenizer st = new StringTokenizer(imgName, "._");
 				String imageLabel = st.nextToken();
@@ -104,37 +90,30 @@ public class CalCat {
 		}
 
 		// load junk images
-//		for (String junkDir: directories){
-//			if (!junkDir.equals(picfolder)){
-//				try {
-//					File junkImagesDir = new File(picfolder, junkDir);
-//					rgbDataMap.putAll(ImageRecognitionHelper.getFractionRgbDataForDirectory(junkImagesDir, new Dimension (width, height))); // pre je koristio ImageLoader
-//				} catch (IOException ioe) {
-//					System.err.println("Unable to load images from junk images dir: '" + junkDir + "'");
-//					System.err.println(ioe.toString());
-//				}
-//			}
-//		}
-		
-		System.out.println(imageLabels.size());
-		System.out.println(rgbDataMap.size());
-		System.out.println(imageLabels);
-		System.out.println(rgbDataMap.keySet());
-		System.out.println(rgbDataMap.values());
+		for (String labeledjunkDir: directories){
+			File junkDir = new File(picfolder, labeledjunkDir);
+			if (!junkDir.toString().equals(imageDir.toString())){
+				
+				try {
+					rgbDataMap.putAll(ImageRecognitionHelper.getFractionRgbDataForDirectory(junkDir, new Dimension (width, height))); // pre je koristio ImageLoader
+					System.out.println("Load images from junk images dir: '" + junkDir.toString() + "'");
+				} catch (IOException ioe) {
+					System.err.println("Unable to load images from junk images dir: '" + junkDir + "'");
+					System.err.println(ioe.toString());
+				}
+			}
+		}
+
+//		System.out.println(imageLabels.size());
+//		System.out.println(rgbDataMap.size());
+//		System.out.println(imageLabels);
+//		System.out.println(rgbDataMap.keySet());
+//		System.out.println(rgbDataMap.values());
 		dataSet = ImageRecognitionHelper.createBlackAndWhiteTrainingSet(imageLabels, rgbDataMap);
 
 		// create neural networks
 		//		ArrayList<Integer> layers = new ArrayList<Integer> ();
-		System.out.println("Enter number of layers ");
-		numlayers = in.nextInt();
-		System.out.println("You entered number of layers: "+ numlayers);
 
-		for (Integer i = 1; i <= numlayers; i++){
-			System.out.println("Enter number of neurons for layer " + i);
-			Integer neuron = in.nextInt();
-			System.out.println("You entered number of neurons for layer " + i + " :"+ neuron);
-			layers.add (neuron);
-		}
 		nn = ImageRecognitionHelper.createNewNeuralNetwork (trainfolderpath, new Dimension (width, height), ColorMode.BLACK_AND_WHITE, imageLabels, layers, TransferFunctionType.SIGMOID);
 
 		// learn data
@@ -144,39 +123,50 @@ public class CalCat {
 		mb1.setMomentum(0.7);
 		nn.learn(dataSet);
 
-		return imageRecognition = (ImageRecognitionPlugin)nn.getPlugin(ImageRecognitionPlugin.class); 
+		imageRecognition = (ImageRecognitionPlugin)nn.getPlugin(ImageRecognitionPlugin.class); 
+		return imageRecognition;
 	}
 
 	// Test images
-	public static HashMap<String, Double> createtestingdataset (ImageRecognitionPlugin ir, File testfolderpath){
-		System.out.println("-----------------------------------------------------------------------------------------------------");
-		for (File file : testfolderpath.listFiles ())
+	public static TreeMap<String, ArrayList<Double>> createtestingdataset (TreeMap<String, ArrayList<Double>> imageRecMap, ImageRecognitionPlugin imageRecognition, File testfolderpath, Integer width, Integer height){
+
+		String result = "";
+//		System.out.println("-----------------------------------------------------------------------------------------------------");
+		File[] testfiles = testfolderpath.listFiles();
+		System.out.println(Arrays.deepToString(testfiles));
+		Arrays.sort(testfiles);
+		System.out.println(Arrays.deepToString(testfiles));
+		for (File file : testfiles)
 		{
 			String testfile = FilenameUtils.removeExtension(file.getName());
-			System.out.println("Checking '" + testfile + "'");
+			
 
-			try {
-				HashMap<String, Double> output = imageRecognition.recognizeImage(file);
+			Image img = ImageFactory.getImage(file);
+			img = ImageSampler.downSampleImage(new Dimension(width, height), img);
+			HashMap<String, Double> output = imageRecognition.recognizeImage(img);
 
-				NumberFormat formatter = new DecimalFormat("#0.0"); 
-				double maxPercent = Double.MIN_VALUE;
-				for (Map.Entry<String, Double> entry : output.entrySet()) {
-					String result = entry.getKey() ;
-					if ( entry.getValue() > maxPercent){
-						maxPercent = entry.getValue(); 
-						result = entry.getKey() + " (" + formatter.format(maxPercent * 100) + " %)";
-						imageRecMap.put(entry.getKey(), entry.getValue());
+			NumberFormat formatter = new DecimalFormat("#0.0"); 
+			double maxPercent = Double.MIN_VALUE;
+			for (Map.Entry<String, Double> entry : output.entrySet()) {
+				result = entry.getKey();
+				if ( entry.getValue() > maxPercent){
+					maxPercent = entry.getValue(); 
+					result = entry.getKey() + " (" + formatter.format(maxPercent * 100) + " %)";
+					if (imageRecMap.containsKey(testfile)){
+						ArrayList<Double> previousList = imageRecMap.get(testfile);
+						previousList.add(entry.getValue());
+						imageRecMap.put(testfile, previousList);
+					}else{
+						ArrayList<Double> newList = new ArrayList<Double> ();
+						newList.add(entry.getValue());
+						imageRecMap.put(testfile, newList);
 					}
-					System.out.println(result);
 				}
-
-			} catch(IOException ioe) {
-				ioe.printStackTrace();
 			}
-
 		}
-		System.out.println("-----------------------------------------------------------------------------------------------------");
+//		System.out.print(result);
+//		System.out.println("-----------------------------------------------------------------------------------------------------");
 		return imageRecMap;
 	}
-
+	
 }

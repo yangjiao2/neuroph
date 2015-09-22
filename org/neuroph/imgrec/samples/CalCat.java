@@ -42,7 +42,7 @@ public class CalCat {
 	private static HashMap<String, BufferedImage> imagesMap = new HashMap<String, BufferedImage> ();
 	private static NeuralNetwork nn;
 	private static ImageRecognitionPlugin imageRecognition;
-	public static ImageRecognitionPlugin createlearningdataset (File picfolder, File labeledImagesDir, String trainfolderpath, String[] directories , Integer width, Integer height, Integer numlayers, ArrayList<Integer> layers){
+	public static ImageRecognitionPlugin createlearningdataset (File picfolder, File labeledImagesDir, String trainfolderpath, String[] directories , Integer width, Integer height, Integer numlayers, ArrayList<Integer> layers, double learningrate, double maxerror, double momentum){
 
 		// Create learning data
 		//		List<String> imageLabels = new ArrayList<String> ();
@@ -104,11 +104,6 @@ public class CalCat {
 			}
 		}
 
-//		System.out.println(imageLabels.size());
-//		System.out.println(rgbDataMap.size());
-//		System.out.println(imageLabels);
-//		System.out.println(rgbDataMap.keySet());
-//		System.out.println(rgbDataMap.values());
 		dataSet = ImageRecognitionHelper.createBlackAndWhiteTrainingSet(imageLabels, rgbDataMap);
 
 		// create neural networks
@@ -118,9 +113,13 @@ public class CalCat {
 
 		// learn data
 		MomentumBackpropagation mb1 = (MomentumBackpropagation)nn.getLearningRule();
-		mb1.setLearningRate(0.2);
-		mb1.setMaxError(0.1);
-		mb1.setMomentum(0.7);
+		
+		
+		
+		
+		mb1.setLearningRate(learningrate);
+		mb1.setMaxError(maxerror);
+		mb1.setMomentum(momentum);
 		nn.learn(dataSet);
 
 		imageRecognition = (ImageRecognitionPlugin)nn.getPlugin(ImageRecognitionPlugin.class); 
@@ -133,18 +132,18 @@ public class CalCat {
 		String result = "";
 //		System.out.println("-----------------------------------------------------------------------------------------------------");
 		File[] testfiles = testfolderpath.listFiles();
-		System.out.println(Arrays.deepToString(testfiles));
 		Arrays.sort(testfiles);
-		System.out.println(Arrays.deepToString(testfiles));
+//		System.out.println(Arrays.deepToString(testfiles));
 		for (File file : testfiles)
 		{
 			String testfile = FilenameUtils.removeExtension(file.getName());
-			
+			System.out.println(file);
 
 			Image img = ImageFactory.getImage(file);
 			img = ImageSampler.downSampleImage(new Dimension(width, height), img);
 			HashMap<String, Double> output = imageRecognition.recognizeImage(img);
-
+			System.out.println(output);
+			
 			NumberFormat formatter = new DecimalFormat("#0.0"); 
 			double maxPercent = Double.MIN_VALUE;
 			for (Map.Entry<String, Double> entry : output.entrySet()) {
@@ -167,6 +166,21 @@ public class CalCat {
 //		System.out.print(result);
 //		System.out.println("-----------------------------------------------------------------------------------------------------");
 		return imageRecMap;
+	}
+	
+	public static TreeMap<String, ArrayList<Double>> getbestrecognizationresult(TreeMap<String, ArrayList<Double>> imageRecMap, String[] directories){
+		TreeMap<String, ArrayList<Double>> imageRecResultMap = new TreeMap<String, ArrayList<Double>>();
+		for (Map.Entry<String, ArrayList<Double>> entry: imageRecMap.entrySet()){
+			Double max = Collections.max(entry.getValue());
+			int maxindex = entry.getValue().indexOf(max);
+			ArrayList<String> resultkey = new ArrayList<String> ();
+//			resultkey.add(entry.getKey());
+//			resultkey.add(directories[maxindex]);
+			ArrayList<Double> resultvalue = entry.getValue();
+			resultvalue.add(0, max);
+			imageRecResultMap.put(entry.getKey(), resultvalue);
+		}
+		return imageRecResultMap;
 	}
 	
 }
